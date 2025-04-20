@@ -120,8 +120,42 @@ def add_sale(conn: sqlite3.Connection, sdate: str, mid: str, bid: str, sqty_inpu
 
     except sqlite3.DatabaseError:
         return False, "資料庫錯誤"
+    
+def print_sale_report(conn: sqlite3.Connection) -> None:
+    """print_sale_report(conn: sqlite3.Connection) -> None
+    查詢並顯示所有銷售報表，按銷售編號排序。"""
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT sale.sid, sale.sdate, member.mname, book.btitle,
+               book.bprice, sale.sqty, sale.sdiscount, sale.stotal
+        FROM sale
+        JOIN member ON sale.mid = member.mid
+        JOIN book ON sale.bid = book.bid
+        ORDER BY sale.sid
+    """)
+    rows = cursor.fetchall()
+    if not rows:
+        print("目前沒有銷售資料。")
+        return
 
-# 測試
+    print("\n" + "="*20 + " 銷售報表 " + "="*20)
+
+    for idx, row in enumerate(rows, 1):
+        print(f"\n銷售 #{idx}")
+        print(f"銷售編號: {row['sid']}")
+        print(f"銷售日期: {row['sdate']}")
+        print(f"會員姓名: {row['mname']}")
+        print(f"書籍標題: {row['btitle']}")
+        print("-"*50)
+        print("單價\t數量\t折扣\t小計")
+        print("-"*50)
+        print(f"{row['bprice']}\t{row['sqty']}\t{row['sdiscount']}\t{row['stotal']:,}")
+        print("-"*50)
+        print(f"銷售總額: {row['stotal']:,}")
+        print("="*50)
+
+
+# 測試新增
 def manual_test_add_sale():
     import sqlite3
 
@@ -150,6 +184,19 @@ def manual_test_add_sale():
 
     conn.close()
 
+# 測試顯示
+def test_print_sale_report():
+    import sqlite3
+
+    conn = sqlite3.connect("bookstore.db")
+    conn.row_factory = sqlite3.Row  # 讓 row 可以用欄位名稱
+
+    print("\n📄 銷售報表測試")
+    print_sale_report(conn)
+
+    conn.close()
+
 # 放在主程式入口點
 if __name__ == "__main__":
-    manual_test_add_sale()
+    #manual_test_add_sale()
+    test_print_sale_report()
