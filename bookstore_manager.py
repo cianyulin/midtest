@@ -168,23 +168,28 @@ def update_sale(conn: sqlite3.Connection) -> None:
     sales = cursor.fetchall()
 
     print("\n======== 銷售記錄列表 ========")
-    for i, sale in enumerate(sales, 1):
-        print(f"{i}. 銷售編號: {sale['sid']} - 會員: {sale['mname']} - 日期: {sale['sdate']}")
+    for sale in sales:
+        print(f"銷售編號: {sale['sid']} - 會員: {sale['mname']} - 日期: {sale['sdate']}")
     print("================================")
 
-    choice = input("請選擇要更新的銷售編號 (輸入數字或按 Enter 取消): ")
+    choice = input("請輸入要更新的銷售編號 (輸入數字或按 Enter 取消): ")
     if not choice:
         return
 
     try:
-        choice = int(choice)
-        if choice < 1 or choice > len(sales):
-            print("錯誤：請輸入有效的數字")
+        sid = int(choice)
+        matched_sale = None
+        for sale in sales:
+            if sale["sid"] == sid:
+                matched_sale = sale
+                break
+
+        if not matched_sale:
+            print("錯誤：找不到該銷售編號")
             return
 
-        sid = sales[choice - 1]["sid"]
-        bprice = sales[choice - 1]["bprice"]
-        sqty = sales[choice - 1]["sqty"]
+        bprice = matched_sale["bprice"]
+        sqty = matched_sale["sqty"]
 
         discount = int(input("請輸入新的折扣金額："))
         if discount < 0:
@@ -197,6 +202,7 @@ def update_sale(conn: sqlite3.Connection) -> None:
         print(f"=> 銷售編號 {sid} 已更新！(銷售總額: {stotal:,})")
     except ValueError:
         print("錯誤：請輸入有效的數字")
+
 
 def delete_sale(conn: sqlite3.Connection) -> None:
     """delete_sale(conn: sqlite3.Connection) -> None
@@ -215,22 +221,69 @@ def delete_sale(conn: sqlite3.Connection) -> None:
         print(f"{i}. 銷售編號: {sale['sid']} - 會員: {sale['mname']} - 日期: {sale['sdate']}")
     print("================================")
 
-    choice = input("請選擇要刪除的銷售編號 (輸入數字或按 Enter 取消): ")
+    choice = input("請輸入要刪除的銷售編號 (輸入數字或按 Enter 取消): ")
     if not choice:
         return
 
     try:
-        choice = int(choice)
-        if choice < 1 or choice > len(sales):
-            print("錯誤：請輸入有效的數字")
+        sid = int(choice)
+        found = False
+        for sale in sales:
+            if sale["sid"] == sid:
+                found = True
+                break
+
+        if not found:
+            print("錯誤：找不到該銷售編號")
             return
 
-        sid = sales[choice - 1]["sid"]
         cursor.execute("DELETE FROM sale WHERE sid = ?", (sid,))
         conn.commit()
         print(f"=> 銷售編號 {sid} 已刪除")
     except ValueError:
         print("錯誤：請輸入有效的數字")
+
+def main() -> None:
+    """main() -> None
+    程式主流程，包含選單迴圈和各功能的呼叫"""
+    with connect_db() as conn:
+        initialize_db(conn)
+
+        while True:
+            print("""
+***************選單***************
+1. 新增銷售記錄
+2. 顯示銷售報表
+3. 更新銷售記錄
+4. 刪除銷售記錄
+5. 離開
+**********************************
+            """)
+            choice = input("請選擇操作項目(Enter 離開)：")
+            if not choice or choice == "5":
+                break
+            elif choice == "1":
+                sdate = input("請輸入銷售日期 (YYYY-MM-DD)：")
+                mid = input("請輸入會員編號：")
+                bid = input("請輸入書籍編號：")
+
+                try:
+                    sqty = int(input("請輸入購買數量："))
+                    sdiscount = int(input("請輸入折扣金額："))
+                except ValueError:
+                    print("=> 錯誤：數量或折扣必須為整數，請重新輸入")
+                    continue
+
+                success, message = add_sale(conn, sdate, mid, bid, sqty, sdiscount)
+                print("=>", message)
+            elif choice == "2":
+                print_sale_report(conn)
+            elif choice == "3":
+                update_sale(conn)
+            elif choice == "4":
+                delete_sale(conn)
+            else:
+                print("=> 請輸入有效的選項（1-5）")
 
 
 # 測試新增
@@ -300,4 +353,5 @@ if __name__ == "__main__":
     #manual_test_add_sale()
     #test_print_sale_report()
     #test_update_sale_function()
-    test_delete_sale_function()
+    #test_delete_sale_function()
+    main()
