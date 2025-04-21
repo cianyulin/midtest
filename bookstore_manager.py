@@ -154,6 +154,50 @@ def print_sale_report(conn: sqlite3.Connection) -> None:
         print(f"銷售總額: {row['stotal']:,}")
         print("="*50)
 
+def update_sale(conn: sqlite3.Connection) -> None:
+    """update_sale(conn: sqlite3.Connection) -> None
+    顯示銷售記錄列表，提示使用者輸入要更新的銷售編號和新的折扣金額，重新計算總額"""
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT sale.sid, member.mname, sale.sdate, book.bprice, sale.sqty
+        FROM sale
+        JOIN member ON sale.mid = member.mid
+        JOIN book ON sale.bid = book.bid
+        ORDER BY sale.sid
+    """)
+    sales = cursor.fetchall()
+
+    print("\n======== 銷售記錄列表 ========")
+    for i, sale in enumerate(sales, 1):
+        print(f"{i}. 銷售編號: {sale['sid']} - 會員: {sale['mname']} - 日期: {sale['sdate']}")
+    print("================================")
+
+    choice = input("請選擇要更新的銷售編號 (輸入數字或按 Enter 取消): ")
+    if not choice:
+        return
+
+    try:
+        choice = int(choice)
+        if choice < 1 or choice > len(sales):
+            print("錯誤：請輸入有效的數字")
+            return
+
+        sid = sales[choice - 1]["sid"]
+        bprice = sales[choice - 1]["bprice"]
+        sqty = sales[choice - 1]["sqty"]
+
+        discount = int(input("請輸入新的折扣金額："))
+        if discount < 0:
+            print("錯誤：折扣金額不能為負數")
+            return
+        stotal = (bprice * sqty) - discount
+
+        cursor.execute("UPDATE sale SET sdiscount = ?, stotal = ? WHERE sid = ?", (discount, stotal, sid))
+        conn.commit()
+        print(f"=> 銷售編號 {sid} 已更新！(銷售總額: {stotal:,})")
+    except ValueError:
+        print("錯誤：請輸入有效的數字")
+
 
 # 測試新增
 def manual_test_add_sale():
@@ -196,7 +240,22 @@ def test_print_sale_report():
 
     conn.close()
 
+
+#測試改銷售紀錄
+def test_update_sale_function():
+    conn = sqlite3.connect("bookstore.db")
+    conn.row_factory = sqlite3.Row
+
+    update_sale(conn)
+
+    conn.close()
+
+if __name__ == "__main__":
+    test_update_sale_function()
+
+
 # 放在主程式入口點
 if __name__ == "__main__":
     #manual_test_add_sale()
-    test_print_sale_report()
+    #test_print_sale_report()
+    test_update_sale_function()
